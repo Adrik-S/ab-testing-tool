@@ -1,10 +1,18 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from statsmodels.stats.proportion import proportions_ztest
 from scipy import stats
 import math
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class ABTestInput(BaseModel):
     control_visitors: int
@@ -81,8 +89,6 @@ def interpret_experiment(data: InterpretInput):
     z_stat, p_value = proportions_ztest(count, nobs)
     p_value = float(p_value)
     significant = bool(p_value < 0.05)
-
-    # Check if sample size was sufficient
     p1 = control_rate
     p2 = p1 * (1 + data.minimum_detectable_effect)
     z_alpha = float(stats.norm.ppf(0.975))
@@ -91,32 +97,27 @@ def interpret_experiment(data: InterpretInput):
     denominator = (p2 - p1) ** 2
     required_sample = math.ceil(numerator / denominator)
     sample_sufficient = bool(data.control_visitors >= required_sample and data.variant_visitors >= required_sample)
-
-    # Build the narrative
     direction = "improved" if uplift > 0 else "decreased"
-    magnitude = "significantly" if abs(uplift) > 20 else "slightly"
-
     if significant and uplift > 0 and sample_sufficient:
         recommendation = "Ship it"
         reasoning = f"The variant {direction} {data.metric_name} by {round(abs(uplift), 1)}% and the result is statistically significant with enough data to be confident. This is a clear win."
         risk = "Low - result is backed by sufficient data and strong significance."
     elif significant and uplift > 0 and not sample_sufficient:
         recommendation = "Proceed with caution"
-        reasoning = f"The variant {direction} {data.metric_name} by {round(abs(uplift), 1)}% and reached significance, but you had fewer visitors than the recommended {required_sample} per group. The result may not hold at scale."
-        risk = "Medium - significance reached early, which can be misleading. Consider running longer."
+        reasoning = f"The variant {direction} {data.metric_name} by {round(abs(uplift), 1)}% and reached significance, but you had fewer visitors than the recommended {required_sample} per group."
+        risk = "Medium - significance reached early, which can be misleading."
     elif not significant and sample_sufficient:
         recommendation = "Kill it"
-        reasoning = f"You had enough data ({data.control_visitors} visitors vs {required_sample} required) but the variant did not produce a significant improvement. The difference is likely random noise."
+        reasoning = f"You had enough data ({data.control_visitors} visitors vs {required_sample} required) but the variant did not produce a significant improvement."
         risk = "Low - you gave the test a fair chance and it did not deliver."
     elif not significant and not sample_sufficient:
         recommendation = "Keep running"
-        reasoning = f"The test has not reached the required {required_sample} visitors per group yet (currently at {data.control_visitors}). It is too early to make any decision - calling it now risks a false conclusion."
+        reasoning = f"The test has not reached the required {required_sample} visitors per group yet (currently at {data.control_visitors}). It is too early to make any decision."
         risk = "High - stopping early is the most common mistake in experimentation."
     else:
         recommendation = "Review manually"
-        reasoning = f"The variant {direction} {data.metric_name} by {round(abs(uplift), 1)}%. While significant, the direction is negative - the variant is hurting performance."
+        reasoning = f"The variant {direction} {data.metric_name} by {round(abs(uplift), 1)}%. The variant is hurting performance."
         risk = "High - do not ship. Investigate what caused the regression."
-
     return {
         "experiment_name": data.experiment_name,
         "metric_name": data.metric_name,
@@ -135,4 +136,3 @@ def interpret_experiment(data: InterpretInput):
 @app.get("/")
 def root():
     return {"status": "AB Testing Tool is live"}
-
