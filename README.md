@@ -1,14 +1,16 @@
 # AB Testing Tool
 
-A statistics-powered API that helps product managers and growth teams run better experiments.
+A statistics-powered tool that helps product managers and growth teams run better experiments.
 
-Built with FastAPI and Python. No more gut-feel decisions or stopping tests too early.
+Live at: https://abtestingtool.framer.website
+
+Built with FastAPI, Python, and Framer. No more gut-feel decisions or stopping tests too early.
 
 ## What it does
 
-- **/analyze** — takes raw experiment data and returns statistical significance, p-value, uplift, and confidence intervals
-- **/sample-size** — calculates how many visitors you need before starting a test
-- **/interpret** — cross-references your results against required sample size and returns a plain English recommendation with risk assessment
+- **Analyze results** — enter experiment data and get statistical significance, p-value, uplift, and a confidence interval visualisation
+- **Sample size calculator** — find out how many visitors you need before starting a test
+- **Interpret endpoint** — cross-references results against required sample size and returns a plain English recommendation with risk assessment
 
 ## The problem it solves
 
@@ -23,28 +25,18 @@ Most PMs either call tests too early or do not know how much data they need befo
 5. Start the server: uvicorn main:app --reload
 6. Open http://127.0.0.1:8000/docs for the interactive API explorer
 
-## Example: catching a common PM mistake
-
-A PM runs a test for 3 days, sees a 40% uplift and wants to ship.
-
-Request to /interpret:
-- control: 500 visitors, 25 conversions
-- variant: 500 visitors, 35 conversions
-
-Response:
-- recommendation: Keep running
-- reasoning: The test has not reached the required 8155 visitors per group yet. It is too early to make any decision.
-- risk: High - stopping early is the most common mistake in experimentation.
-
 ## Tech stack
 
 - FastAPI - API framework
 - statsmodels - statistical tests
 - scipy - Z-score calculations
 - uvicorn - ASGI server
+- Framer - frontend
+- Railway - backend deployment
 
 ## Roadmap
 
-- [ ] Phase 2: Framer front-end with interactive visualisations
+- [x] Phase 1: Statistical API with analyze, sample-size, and interpret endpoints
+- [x] Phase 2: Framer frontend with confidence interval visualisation
 - [ ] Phase 3: Experiment tracker with Supabase
 - [ ] Phase 4: Notion and Google Sheets export
